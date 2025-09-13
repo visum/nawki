@@ -1,21 +1,20 @@
-import type { Critter, Vector2D } from '../types/Critter';
+import type { Critter } from '../types/Critter';
 import { Environment } from '../types/Environment';
 import { Processor } from './Processor';
+import { Plugin } from './plugins/plugin';
 
 export class Simulation {
   private critters: Critter[] = [];
   private time: number = 0;
   private processor: Processor = new Processor();
+  private environment: Environment;
 
-  private environment: Environment = {
-    boundaries: {
-      x: [-10, 10], y: [-10, 10],
-    },
-    foodPositions: new Map<number, Vector2D>()
-  };
+  private _plugins: Plugin[] = [];
 
-  constructor() {
+  constructor(environment: Environment, plugins: Plugin[] = []) {
     // Initialize empty simulation
+    this._plugins = plugins;
+    this.environment = environment;
   }
 
   addCritter(critter: Critter) {
@@ -24,11 +23,27 @@ export class Simulation {
 
   public update(deltaTime: number): void {
     this.time += deltaTime;
+    for (const plug of this._plugins) {
+      if (typeof plug.beforeTick === 'function') {
+        plug.beforeTick();
+      }
+    }
 
     this.critters.forEach(critter => {
       this.updateCritter(critter, deltaTime);
+
+      for (const plug of this._plugins) {
+        if (typeof plug.processCritter === 'function') {
+          plug.processCritter(critter);
+        }
+      }
     });
 
+    for (const plug of this._plugins) {
+      if (typeof plug.afterTick === 'function') {
+        plug.afterTick();
+      }
+    }
   }
 
   private updateCritter(critter: Critter, deltaTime: number): void {
@@ -42,7 +57,7 @@ export class Simulation {
   }
 
   private applyBehaviors(critter: Critter): void {
-    this.processor.process(critter, this.environment, this.critters);
+    this.processor.process(critter, this.environment, this.critters, this._plugins);
   }
 
   public getCritters(): Critter[] {

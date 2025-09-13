@@ -27,22 +27,42 @@ export function getAdamInstance(): Critter {
       {
         source: 4, // proximity +x
         target: 9, // movex
-        fn: (i: number) => -Math.max(-i + 80, 0) * 0.01
+        fn: (i: number) => -Math.max(-i + 60, 0) * 0.003
       },
       {
         source: 5, // proximity -x
         target: 9, // movex,
-        fn: (i: number) => Math.max(-i + 80, 0) * 0.01
+        fn: (i: number) => Math.max(-i + 60, 0) * 0.003
       },
       {
         source: 6, // proximity +y
         target: 10, //moveY
-        fn: (i: number) => -Math.max(-i + 80, 0) * 0.01
+        fn: (i: number) => -Math.max(-i + 60, 0) * 0.003
       },
       {
         source: 7, // proximity -y
         target: 10, // moveY
-        fn: (i: number) => Math.max(-i + 80, 0) * 0.01
+        fn: (i: number) => Math.max(-i + 60, 0) * 0.003
+      },
+      {
+        source: 0, // food +x
+        target: 9, // movex
+        fn: (i: number) => Math.max(-i + 60, 0) * 0.005
+      },
+      {
+        source: 1, // food -x,
+        target: 9, // movex,
+        fn: (i: number) => -Math.max(-i + 60, 0) * 0.005
+      },
+      {
+        source: 2, // food +y,
+        target: 10, // moveY,
+        fn: (i: number) => Math.max(-i + 60, 0) * 0.005
+      },
+      {
+        source: 3, // food -y,
+        target: 10, // moveY,
+        fn: (i: number) => -Math.max(-i + 60, 0) * 0.005
       }
     ],
     position: { x: 0, y: 0 },
