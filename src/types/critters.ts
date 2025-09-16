@@ -8,8 +8,8 @@ export type Critter = {
   id: string;
   cells: number[];
   links: Link[];
-  heading: number;
   velocity: number;
+  heading: number; // in rad
   position: Vector2D;
 };
 

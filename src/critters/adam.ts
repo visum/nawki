@@ -2,7 +2,7 @@ import type { Critter } from "../types/Critter";
 
 export function getAdamInstance(): Critter {
   return {
-    id: 0,
+    id: "",
     cells: [
       // inputs
       0, // food
@@ -66,7 +66,8 @@ export function getAdamInstance(): Critter {
       }
     ],
     position: { x: 0, y: 0 },
-    velocity: { x: 0, y: 0 }
+    heading: 0,
+    velocity: 0,
   };
 }
 
