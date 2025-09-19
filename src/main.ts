@@ -1,16 +1,16 @@
-import { AquariumRenderer } from './renderer/AquariumRenderer.js';
-import { getAdamInstance } from './critters/adam.js';
-import { nanoid } from 'nanoid';
-
 import { Simulation } from './simulation.js';
 import { getWorld, WorldState } from './world.js';
 
+import { RendererSystem } from './systems/renderer_system.js';
+
+import { Scene } from './scene.js';
+
 class App {
-  private renderer: AquariumRenderer;
   private isRunning: boolean = true;
 
   private _simulation: Simulation;
   private _world: WorldState;
+  private _scene: Scene;
 
   constructor() {
     const canvas = document.getElementById('aquarium-canvas') as HTMLCanvasElement;
@@ -18,12 +18,26 @@ class App {
       throw new Error('Canvas element not found');
     }
 
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    this._scene = new Scene(canvas);
+
     this._world = getWorld();
+
+    this._world.environment.set('boundary_left', -(canvas.width / 2));
+    this._world.environment.set('boundary_right', canvas.width / 2);
+    this._world.environment.set('boundary_top', canvas.height / 2);
+    this._world.environment.set('boundary_bottom', -(canvas.height / 2));
+
     this._simulation = new Simulation(this._world);
 
+    this._simulation.addSystem(new RendererSystem(this._scene));
+
     this.setupControls();
-    this.setupEventListeners();
     this.start();
+
+    // TODO set up handling resize to resize the tank or scale the rendering
   }
 
   private setupControls(): void {
@@ -40,41 +54,16 @@ class App {
     });
   }
 
-  private setupEventListeners(): void {
-    window.addEventListener('resize', () => {
-      this.renderer.handleResize();
-    });
-
-    // Add some critters on click
-    this.renderer.getCanvas().addEventListener('click', (e) => {
-      const rect = this.renderer.getCanvas().getBoundingClientRect();
-      const x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
-      const y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
-
-
-      const critter = getAdamInstance();
-      this._simulation.addCritter(nanoid(), critter);
-    });
-  }
-
-  private animate = (currentTime: number): void => {
-    const deltaTime = currentTime - this.lastTime;
-    this.lastTime = currentTime;
-
+  private animate = (): void => {
     if (this.isRunning) {
-      this.simulation.update(deltaTime * this.timeScale);
+      this._simulation.tick();
     }
-
-    this.renderer.render(this.simulation.getCritters());
-    this.updateStats(deltaTime);
 
     requestAnimationFrame(this.animate);
   };
 
 
   public start(): void {
-
-    this.lastTime = performance.now();
     requestAnimationFrame(this.animate);
   }
 }

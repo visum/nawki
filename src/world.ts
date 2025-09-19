@@ -1,11 +1,12 @@
 import { nanoid } from "nanoid";
 import * as THREE from "three";
-import { Critter } from "./types/Critter";
+import { Critter } from "./types/critter";
 
 export type WorldState = {
   environment: Map<string, number>;
   entities: Entity[];
-  renderables: THREE.Mesh[];
+  renderablesToAdd: THREE.Mesh[];
+  renderablesToRemove: THREE.Mesh[];
   critters: Map<string, Critter>;
 };
 
@@ -37,11 +38,36 @@ export function getComponent(type: string): Component {
   };
 }
 
+export function firstComponentOrThrow(entity: Entity, componentType: string) {
+  const cpt = entity.components.find(c => c.type === componentType);
+  if (cpt == null) {
+    throw new Error("Component not found on that entity");
+  }
+  return cpt;
+}
+
+export function componentStringValueOrThrow(component: Component, name: string) {
+  const value = component.stringValues.get(name);
+  if (name == "") {
+    throw new Error("String value not found on component");
+  }
+  return value;
+}
+
+export function componentNumberValueOrThrow(component: Component, name: string) {
+  const value = component.numberValues.get(name);
+  if (value == null) {
+    throw new Error("Number value not found on component");
+  }
+  return value;
+}
+
 export function getWorld(): WorldState {
   return {
     environment: new Map<string, number>(),
     entities: [],
-    renderables: [],
+    renderablesToAdd: [],
+    renderablesToRemove: [],
     critters: new Map<string, Critter>()
   }
 }

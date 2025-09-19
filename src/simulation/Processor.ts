@@ -148,15 +148,12 @@ export class Processor {
 
 Memory map:
 -- Inputs
-[0]: Food +x
-[1]: Food -x
-[2]: Food +y
-[3]: Food -y
-[4]: Proximity +x
-[5]: Proximity -x
-[6]: Proximity +y
-[7]: Proximity -y
-[8]: Energy
+[0]: food angle (relative)
+[1]: food distance
+[2]: neighbor angle (relative)
+[3]: neighbor distance
+[4]: energy
+[5]: heading
 
 -- Ouputs
 [9]: MoveX

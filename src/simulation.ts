@@ -1,6 +1,6 @@
 import { WorldState } from "./world";
 import { System } from "./types/system";
-import { Critter } from "./types/Critter";
+import { Critter } from "./types/critter";
 
 export class Simulation {
   private _world: WorldState;
