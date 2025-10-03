@@ -53,6 +53,11 @@ export class CritterSystem implements System {
         this._valueBuffer[i] = 0;
       }
 
+      // assign environment values
+      critter.cells[4] = critter.energy; // not yet enforced
+      critter.cells[5] = critter.heading;
+      critter.cells[6] = critter.velocity;
+
       // process critter connections
       for (const link of critter.links) {
         const { source, target, fn } = link;
@@ -154,7 +159,7 @@ Memory map:
 [11]: accel
 
 -- General
-[11]
+[20]
 ...
 [60]
  */
