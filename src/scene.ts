@@ -20,9 +20,8 @@ export class Scene {
     this._width = width;
     this._height = height;
 
-    const aspect = window.innerWidth / window.innerHeight;
     this._camera = new THREE.OrthographicCamera(
-      -(width / 2) * aspect, (width / 2) * aspect, // left, right
+      -(width / 2), (width / 2), // left, right
       (height / 2), -(height / 2), // top, bottom
       1, 1000 // near, far
     );
@@ -33,7 +32,7 @@ export class Scene {
       canvas: this._canvas,
       antialias: true
     });
-    this._renderer.setSize(window.innerWidth, window.innerHeight);
+    this._renderer.setSize(width, height);
     this._renderer.setPixelRatio(window.devicePixelRatio);
   }
 
@@ -87,10 +86,6 @@ export class Scene {
     const topWall = new THREE.Mesh(topWallGeometry, wallMaterial);
     topWall.position.y = this._height / 2;
     this._scene.add(topWall);
-
-    // Add some ambient lighting effect
-    const ambientLight = new THREE.AmbientLight(0x404040, 0.6);
-    this._scene.add(ambientLight);
   }
 
 }

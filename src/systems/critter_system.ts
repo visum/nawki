@@ -1,21 +1,35 @@
 import { System } from "../types/system";
-import { WorldState } from "../world";
-import { Critter } from "../types/critter";
+import { componentNumberValueOrThrow, firstComponentOrThrow, World } from "../world";
 import * as THREE from "three";
+import { CritterBrain } from "./critter_brain";
 
 const DRAG = 0.9;
 
+/*
+ *  We need to instantiate a CritterBrain for each of the
+ *  critters, and keep in a map.
+ *
+ *  On each tick, we update the input values, then
+ *  read the output values, then decay.
+ *
+ *  Maybe the CritterBrain holds environmental state as well...
+ *
+ *  What we really need is just the critter definition, not an instance
+ *  of a critter with state.
+ *
+ *  TODO: Make the critters on the world entities?
+ *  for each critterToAdd, instantiate a new CritterBrain
+ *
+ * */
+
 export class CritterSystem implements System {
-  private _crittersToAdd = new Set<Critter>();
-  private _crittersToRemove = new Set<Critter>();
+  private _critterIdToBrain = new Map<string, CritterBrain>();
 
-  private _valueBuffer: number[] = [];
-
-  private _critterGeometry = new THREE.CircleGeometry(0.1, 12);
+  private _critterGeometry = new THREE.CircleGeometry(2, 12);
   private _critterMaterials: THREE.MeshBasicMaterial[] = [];
   private _nextCritterMaterialIndex = 0;
 
-  private _critterToMesh = new Map<Critter, THREE.Mesh>();
+  private _critterIdToMesh = new Map<string, THREE.Mesh>();
 
   private _colors = [
     0xff6b6b, // Red
@@ -32,55 +46,52 @@ export class CritterSystem implements System {
     this._critterMaterials = this._colors.map(color => new THREE.MeshBasicMaterial({ color }));
   }
 
-  addCritter(critter: Critter) {
-    this._crittersToAdd.add(critter);
-  }
-
-  removeCritter(critter: Critter) {
-    this._crittersToRemove.add(critter);
-  }
-
   onAdd() { }
   onRemove() { }
 
-  onTick(world: WorldState): void {
+  onTick(world: World): void {
     this._removeCritters(world);
     this._addCritters(world);
     // do the critter thing
-    for (const [_id, critter] of world.critters) {
-      // zero out the buffer
-      for (const i in this._valueBuffer) {
-        this._valueBuffer[i] = 0;
+    const critterEntities = world.entities.filter(e => e.type === "critter");
+    for (const ce of critterEntities) {
+      const brain = this._critterIdToBrain.get(ce.id);
+      if (!brain) {
+        continue;
       }
 
-      // assign environment values
-      critter.cells[4] = critter.energy; // not yet enforced
-      critter.cells[5] = critter.heading;
-      critter.cells[6] = critter.velocity;
+      // assign input values
+      brain.setCellValue(CELL_IO_INDEXES.ENERGY, brain.state.energy);
+      brain.setCellValue(CELL_IO_INDEXES.HEADING, brain.state.heading);
+      brain.setCellValue(CELL_IO_INDEXES.VELOCITY, brain.state.velocity);
 
-      // process critter connections
-      for (const link of critter.links) {
-        const { source, target, fn } = link;
-        this._valueBuffer[target] = this._valueBuffer[target] + fn(critter.cells[source]);
+      const accel = brain.readCellValue(CELL_IO_INDEXES.ACCELLERATE);
+      const turn = brain.readCellValue(CELL_IO_INDEXES.TURN);
+
+      const foodCpt = firstComponentOrThrow(ce, "food");
+      const foodDistance = componentNumberValueOrThrow(foodCpt, "distance");
+      const foodAngle = componentNumberValueOrThrow(foodCpt, "relativeAngle");
+
+      brain.setCellValue(CELL_IO_INDEXES.FOOD_DISTANCE, foodDistance);
+      brain.setCellValue(CELL_IO_INDEXES.FOOD_ANGLE, foodAngle);
+
+      if (accel != null) {
+        brain.state.velocity += accel;
       }
 
-      // copy values out of the buffer
-      for (const i in critter.cells) {
-        critter.cells[i] = this._valueBuffer[i];
+      if (turn != null) {
+        brain.state.heading += turn;
       }
-
-      critter.heading += critter.cells[10];
-      critter.velocity += critter.cells[11];
 
       // now process movement
-      const heading = critter.heading;
-      const velocity = critter.velocity;
+      const heading = brain.state.heading;
+      const velocity = brain.state.velocity;
 
       const dX = Math.cos(heading) * velocity;
       const dY = Math.sin(heading) * velocity;
 
-      critter.position.x = dX;
-      critter.position.y = dY;
+      brain.state.position.x = dX;
+      brain.state.position.y = dY;
 
       // enforce edges
       const boundLeft = world.environment.get("boundary_left");
@@ -92,46 +103,107 @@ export class CritterSystem implements System {
         throw new Error("Missing environment values");
       }
 
-      if (critter.position.x < boundLeft) {
-        critter.position.x = boundLeft;
+      if (brain.state.position.x < boundLeft) {
+        brain.state.position.x = boundLeft;
       }
-      if (critter.position.x > boundRight) {
-        critter.position.x = boundRight;
+      if (brain.state.position.x > boundRight) {
+        brain.state.position.x = boundRight;
       }
-      if (critter.position.y < boundBottom) {
-        critter.position.y = boundBottom;
+      if (brain.state.position.y > boundBottom) {
+        brain.state.position.y = boundBottom;
       }
-      if (critter.position.y < boundTop) {
-        critter.position.y = boundTop;
+      if (brain.state.position.y < boundTop) {
+        brain.state.position.y = boundTop;
       }
+
+      const position = firstComponentOrThrow(ce, "position");
+
+      position.numberValues.set("x", brain.state.position.x);
+      position.numberValues.set("y", brain.state.position.y);
+
+      const headingComponent = firstComponentOrThrow(ce, "heading");
+      headingComponent.numberValues.set("heading", heading);
 
       // enforce drag
-      critter.velocity *= DRAG;
+      brain.state.velocity *= DRAG;
 
     }
   }
 
-  private _addCritters(world: WorldState) {
-    for (const critter of this._crittersToAdd) {
-      world.critters.set(critter.id, critter);
+  private _addCritters(world: World) {
+
+    const addEntity = world.firstEntityByType('critters-to-add');
+    if (!addEntity) {
+      return;
+    }
+
+    const critterComponents = addEntity.components.filter(c => c.type === "critter");
+
+    for (const critterComponent of critterComponents) {
+      const critterDefinition = critterComponent.payload;
+      if (!critterDefinition) {
+        continue;
+      }
+      const entity = World.getEntity("critter");
+      const component = World.getComponent("critter_definition");
+      const position = World.getComponent("position");
+      position.numberValues.set("x", 0);
+      position.numberValues.set("y", 0);
+
+      const heading = World.getComponent("heading");
+      heading.numberValues.set("heading", 0);
+
+      const velocity = World.getComponent("velocity");
+      velocity.numberValues.set("velocity", 0);
+
+      const nearbyFood = World.getComponent("food");
+      nearbyFood.numberValues.set("distance", 0);
+      nearbyFood.numberValues.set("relativeAngle", 0);
+
+      entity.components.push(nearbyFood);
+      entity.components.push(component);
+      entity.components.push(heading);
+      entity.components.push(velocity);
+      entity.components.push(position);
+      world.entities.push(entity);
+
+      component.payload = critterDefinition;
+      const brain = new CritterBrain(entity.id);
+      brain.buildFromDefinition(critterDefinition);
+      this._critterIdToBrain.set(entity.id, brain);
+
       const material = this._getMaterial();
       const mesh = new THREE.Mesh(this._critterGeometry, material);
+      mesh.position.x = 0;
+      mesh.position.y = 0;
+      this._critterIdToMesh.set(entity.id, mesh);
       world.renderablesToAdd.push(mesh);
-      this._critterToMesh.set(critter, mesh);
     }
-    this._crittersToAdd.clear();
+
+    addEntity.components.length = 0;
   }
 
-  private _removeCritters(world: WorldState) {
-    for (const c of this._crittersToRemove) {
-      world.critters.delete(c.id);
-      const mesh = this._critterToMesh.get(c);
-      if (mesh != null) {
+  private _removeCritters(world: World) {
+    const removalEntity = world.firstEntityByType("critters-to-remove");
+    if (!removalEntity) {
+      return;
+    }
+    const crittersToRemove = removalEntity.components.filter(c => c.type = "critterId");
+
+    for (const component of crittersToRemove) {
+      const cId = component.stringValues.get('id');
+      if (!cId) {
+        continue;
+      }
+
+      world.removeEntityById(cId);
+      const mesh = this._critterIdToMesh.get(cId);
+      if (mesh) {
         world.renderablesToRemove.push(mesh);
-        this._critterToMesh.delete(c);
+        this._critterIdToMesh.delete(cId);
       }
     }
-    this._crittersToRemove.clear();
+    removalEntity.components.length = 0;
   }
 
   private _getMaterial() {
@@ -143,6 +215,21 @@ export class CritterSystem implements System {
   }
 }
 
+
+export const CELL_IO_INDEXES = {
+  // input/senses
+  FOOD_ANGLE: 0,
+  FOOD_DISTANCE: 1,
+  NEIGHBOR_ANGLE: 2,
+  NEIGHBOR_DISTANCE: 3,
+  ENERGY: 4,
+  HEADING: 5,
+  VELOCITY: 6,
+  // output/behavior
+  TURN: 10,
+  ACCELLERATE: 11,
+};
+
 /*
 
 Memory map:
@@ -153,6 +240,7 @@ Memory map:
 [3]: neighbor distance
 [4]: energy
 [5]: heading
+[6]: velocity
 
 -- Ouput
 [10]: turn

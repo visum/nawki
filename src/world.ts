@@ -1,13 +1,11 @@
 import { nanoid } from "nanoid";
 import * as THREE from "three";
-import { Critter } from "./types/critter";
 
 export type WorldState = {
   environment: Map<string, number>;
   entities: Entity[];
   renderablesToAdd: THREE.Mesh[];
   renderablesToRemove: THREE.Mesh[];
-  critters: Map<string, Critter>;
 };
 
 export type Entity = {
@@ -20,22 +18,7 @@ export type Component = {
   type: string;
   numberValues: Map<string, number>;
   stringValues: Map<string, string>;
-}
-
-export function getEntity(type: string): Entity {
-  return {
-    id: nanoid(),
-    type,
-    components: []
-  };
-}
-
-export function getComponent(type: string): Component {
-  return {
-    type,
-    numberValues: new Map<string, number>(),
-    stringValues: new Map<string, string>()
-  };
+  payload?: any;
 }
 
 export function firstComponentOrThrow(entity: Entity, componentType: string) {
@@ -62,12 +45,41 @@ export function componentNumberValueOrThrow(component: Component, name: string) 
   return value;
 }
 
-export function getWorld(): WorldState {
-  return {
-    environment: new Map<string, number>(),
-    entities: [],
-    renderablesToAdd: [],
-    renderablesToRemove: [],
-    critters: new Map<string, Critter>()
+export class World implements WorldState {
+  environment = new Map<string, number>();
+  entities: Entity[] = [];
+  renderablesToAdd: THREE.Mesh[] = [];
+  renderablesToRemove: THREE.Mesh[] = [];
+
+  static getEntity(type: string): Entity {
+    return {
+      id: nanoid(),
+      type,
+      components: []
+    }
+  }
+
+  static getComponent(type: string): Component {
+    return {
+      type,
+      numberValues: new Map<string, number>(),
+      stringValues: new Map<string, string>(),
+    }
+  }
+
+  getEntityById(id: string) {
+    return this.entities.find(e => e.id == id);
+  }
+
+  removeEntityById(id: string) {
+    const i = this.entities.findIndex(e => e.id === id);
+
+    if (i > -1) {
+      this.entities.slice(i, 1);
+    }
+  }
+
+  firstEntityByType(type: string) {
+    return this.entities.find(e => e.type === type);
   }
 }

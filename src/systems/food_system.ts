@@ -1,21 +1,23 @@
-import { Critter, Vector2D } from "../types/critter";
+import { Vector2D } from "../types/critter";
 import * as THREE from "three";
 import { System } from "../types/system";
-import { WorldState, Entity, getEntity, getComponent, firstComponentOrThrow, componentNumberValueOrThrow } from "../world";
+import { World, Entity, firstComponentOrThrow, componentNumberValueOrThrow } from "../world";
 
-const FOOD_RADIUS = 200;
+const FOOD_RADIUS = 400;
 
 export class FoodSystem implements System {
 
   private _foodToMesh = new Map<Entity, THREE.Mesh>();
 
   private _foodMaterial = new THREE.MeshBasicMaterial({ color: 0x00ffdd77 });
-  private _foodGeometry = new THREE.CircleGeometry(0.1, 12);
+  private _foodGeometry = new THREE.CircleGeometry(1, 12);
 
-  onAdd() { }
+  onAdd(world: World) {
+    this._addFood(10, 0, world);
+  }
   onRemove() { }
 
-  onTick(world: WorldState) {
+  onTick(world: World) {
     const boundaryLeft = world.environment.get("boundary_left");
     const boundaryRight = world.environment.get("boundary_right");
     const boundaryTop = world.environment.get("boundary_top");
@@ -25,7 +27,8 @@ export class FoodSystem implements System {
       throw new Error("Environment missing values");
     }
 
-    const doAddFood = Math.random() > 0.7;
+    // const doAddFood = Math.random() > 0.99;
+    const doAddFood = false;
 
     if (doAddFood) {
       const width = boundaryRight - boundaryLeft;
@@ -34,11 +37,18 @@ export class FoodSystem implements System {
       const posY = (Math.random() * height) - (height / 2);
 
       this._addFood(posX, posY, world)
-      // add bit to meshes
     }
 
-    for (const [_, critter] of world.critters) {
-      const foodInRange = this._getNearbyFood(critter);
+
+    const critterEntities = world.entities.filter(e => e.type === "critter");
+
+    for (const critterEntity of critterEntities) {
+
+      const foodInRange = this._getNearbyFood(critterEntity);
+
+      if (foodInRange.length === 0) {
+        continue;
+      }
 
       const eatenFood = foodInRange.filter(([, dist]) => dist < 0.2);
 
@@ -55,21 +65,28 @@ export class FoodSystem implements System {
       const averageD = sumD / notEatenFood.length;
       const averageAngle = Math.atan2(averageY, averageX);
 
-      const relativeAngle = critter.heading - averageAngle;
-      critter.cells[0] = relativeAngle;
-      critter.cells[1] = averageD;
+      const headingCpt = firstComponentOrThrow(critterEntity, "heading");
+      const heading = componentNumberValueOrThrow(headingCpt, "heading");
+
+      const relativeAngle = heading - averageAngle;
+
+      const foodCpt = firstComponentOrThrow(critterEntity, "food");
+      foodCpt.numberValues.set("relativeAngle", relativeAngle);
+      foodCpt.numberValues.set("distance", averageD);
     }
 
   }
 
-  private _addFood(x: number, y: number, world: WorldState) {
-    const newFood = getEntity("food");
-    const positionC = getComponent("position");
+  private _addFood(x: number, y: number, world: World) {
+    const newFood = World.getEntity("food");
+    const positionC = World.getComponent("position");
     newFood.components.push(positionC);
     positionC.numberValues.set("x", x);
     positionC.numberValues.set("y", y);
 
     const mesh = new THREE.Mesh(this._foodGeometry, this._foodMaterial);
+    mesh.position.x = x;
+    mesh.position.y = y;
 
     world.renderablesToAdd.push(mesh);
     world.entities.push(newFood);
@@ -77,7 +94,7 @@ export class FoodSystem implements System {
     this._foodToMesh.set(newFood, mesh);
   }
 
-  private _removeFood(food: Entity, world: WorldState) {
+  private _removeFood(food: Entity, world: World) {
     const mesh = this._foodToMesh.get(food);
     if (mesh) {
       world.renderablesToRemove.push(mesh);
@@ -86,15 +103,19 @@ export class FoodSystem implements System {
     this._foodToMesh.delete(food);
   }
 
-  private _getNearbyFood(critter: Critter) {
+  private _getNearbyFood(critter: Entity) {
     const results: [Vector2D, number, Entity][] = [];
+
+    const critterPosition = firstComponentOrThrow(critter, "position");
+    const critterX = componentNumberValueOrThrow(critterPosition, "x");
+    const critterY = componentNumberValueOrThrow(critterPosition, "y");
 
     for (const f of this._foodToMesh.keys()) {
       const position = firstComponentOrThrow(f, "position");
       const x = componentNumberValueOrThrow(position, "x");
       const y = componentNumberValueOrThrow(position, "y");
-      const dx = x - critter.position.x;
-      const dy = y - critter.position.y;
+      const dx = x - critterX;
+      const dy = y - critterY;
 
       const distance = Math.sqrt(dx ** 2 + dy ** 2);
 

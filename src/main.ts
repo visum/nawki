@@ -1,15 +1,19 @@
 import { Simulation } from './simulation.js';
-import { getWorld, WorldState } from './world.js';
+import { World } from './world.js';
+import { Adam } from './critters/adam.js';
 
 import { RendererSystem } from './systems/renderer_system.js';
 
 import { Scene } from './scene.js';
+import { CritterSystem } from './systems/critter_system.js';
+import { FoodSystem } from './systems/food_system.js';
+import { CritterNeighborSystem } from './systems/critter_neighbor_system.js';
 
 class App {
   private isRunning: boolean = true;
 
   private _simulation: Simulation;
-  private _world: WorldState;
+  private _world: World;
   private _scene: Scene;
 
   constructor() {
@@ -22,8 +26,11 @@ class App {
     canvas.height = window.innerHeight;
 
     this._scene = new Scene(canvas);
+    this._scene.init();
 
-    this._world = getWorld();
+    this._world = new World();
+
+    (window as any).world = this._world;
 
     this._world.environment.set('boundary_left', -(canvas.width / 2));
     this._world.environment.set('boundary_right', canvas.width / 2);
@@ -33,6 +40,10 @@ class App {
     this._simulation = new Simulation(this._world);
 
     this._simulation.addSystem(new RendererSystem(this._scene));
+    this._simulation.addSystem(new CritterSystem());
+    // this._simulation.addSystem(new CritterNeighborSystem());
+    this._simulation.addSystem(new FoodSystem());
+
 
     this.setupControls();
     this.start();
@@ -43,6 +54,7 @@ class App {
   private setupControls(): void {
     const pauseBtn = document.getElementById('pause-btn') as HTMLButtonElement;
     const stepBtn = document.getElementById('step-btn') as HTMLButtonElement;
+    const canvas = document.getElementById('aquarium-canvas') as HTMLCanvasElement;
 
     pauseBtn?.addEventListener('click', () => {
       this.isRunning = !this.isRunning;
@@ -51,6 +63,10 @@ class App {
 
     stepBtn?.addEventListener('click', () => {
       this._simulation.tick();
+    });
+
+    canvas?.addEventListener('click', () => {
+      this._simulation.addCritter(Adam);
     });
   }
 

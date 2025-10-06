@@ -1,12 +1,12 @@
-import { WorldState } from "./world";
+import { World } from "./world";
 import { System } from "./types/system";
-import { Critter } from "./types/critter";
+import { CritterDefinition } from "./types/critter";
 
 export class Simulation {
-  private _world: WorldState;
+  private _world: World;
   private _systems: System[];
 
-  constructor(world: WorldState) {
+  constructor(world: World) {
     this._world = world;
     this._systems = [];
   }
@@ -24,8 +24,15 @@ export class Simulation {
     system.onRemove(this._world);
   }
 
-  addCritter(id: string, critter: Critter) {
-    this._world.critters.set(id, critter);
+  addCritter(defition: CritterDefinition) {
+    let critterAddEntity = this._world.firstEntityByType("critters-to-add");
+    if (!critterAddEntity) {
+      critterAddEntity = World.getEntity("critters-to-add");
+      this._world.entities.push(critterAddEntity);
+    }
+    const c = World.getComponent("critter");
+    c.payload = defition;
+    critterAddEntity.components.push(c);
   }
 
   tick() {

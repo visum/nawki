@@ -1,6 +1,5 @@
 import { System } from "../types/system";
 import { WorldState } from "../world";
-import { Critter } from "../types/critter";
 import { Vector2D } from "../types/critter";
 
 
