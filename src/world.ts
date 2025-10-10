@@ -1,11 +1,8 @@
 import { nanoid } from "nanoid";
-import * as THREE from "three";
 
 export type WorldState = {
   environment: Map<string, number>;
   entities: Entity[];
-  renderablesToAdd: THREE.Mesh[];
-  renderablesToRemove: THREE.Mesh[];
 };
 
 export type Entity = {
@@ -24,7 +21,7 @@ export type Component = {
 export function firstComponentOrThrow(entity: Entity, componentType: string) {
   const cpt = entity.components.find(c => c.type === componentType);
   if (cpt == null) {
-    throw new Error("Component not found on that entity");
+    throw new Error(`Component ${componentType} not found on entity ${entity.type}`);
   }
   return cpt;
 }
@@ -48,8 +45,6 @@ export function componentNumberValueOrThrow(component: Component, name: string) 
 export class World implements WorldState {
   environment = new Map<string, number>();
   entities: Entity[] = [];
-  renderablesToAdd: THREE.Mesh[] = [];
-  renderablesToRemove: THREE.Mesh[] = [];
 
   static getEntity(type: string): Entity {
     return {
@@ -71,11 +66,21 @@ export class World implements WorldState {
     return this.entities.find(e => e.id == id);
   }
 
+  getEntitiesWithComponent(componentType: string) {
+    const result = new Set<Entity>();
+    for (const e of this.entities) {
+      if (e.components.some(c => c.type === componentType)) {
+        result.add(e);
+      }
+    }
+    return Array.from(result);
+  }
+
   removeEntityById(id: string) {
     const i = this.entities.findIndex(e => e.id === id);
 
     if (i > -1) {
-      this.entities.slice(i, 1);
+      this.entities.splice(i, 1);
     }
   }
 

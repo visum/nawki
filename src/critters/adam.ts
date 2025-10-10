@@ -8,23 +8,28 @@ export const Adam: CritterDefinition = {
     [CELL_IO_INDEXES.FOOD_ANGLE]: {
       staticValue: null,
       threshold: 0,
-      decay: 0,
+      decay: 1,
     },
     [CELL_IO_INDEXES.FOOD_DISTANCE]: {
       staticValue: null,
       threshold: 0,
-      decay: 0,
+      decay: 1,
     },
     [CELL_IO_INDEXES.TURN]: {
       staticValue: null,
       threshold: 0,
-      decay: 0.2
+      decay: 1
     },
     [CELL_IO_INDEXES.ACCELLERATE]: {
       staticValue: null,
       threshold:
         0,
-      decay: 0.2
+      decay: 1
+    },
+    20: { // spped limiter
+      staticValue: 1,
+      threshold: 0,
+      decay: 0.9
     }
   },
   links: [
@@ -35,6 +40,11 @@ export const Adam: CritterDefinition = {
     },
     {
       source: CELL_IO_INDEXES.FOOD_DISTANCE,
+      target: 20,
+      factor: 1
+    },
+    {
+      source: 20,
       target: CELL_IO_INDEXES.ACCELLERATE,
       factor: 1
     }

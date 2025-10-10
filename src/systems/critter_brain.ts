@@ -125,7 +125,7 @@ class Cell {
   }
 
   read(): number {
-    if (this._value >= this._threshold) {
+    if (Math.abs(this._value) >= this._threshold) {
       return this._staticValue == null ? this._value : this._staticValue;
     }
 

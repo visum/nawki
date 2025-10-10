@@ -3,8 +3,6 @@ import { componentNumberValueOrThrow, firstComponentOrThrow, World } from "../wo
 import * as THREE from "three";
 import { CritterBrain } from "./critter_brain";
 
-const DRAG = 0.9;
-
 /*
  *  We need to instantiate a CritterBrain for each of the
  *  critters, and keep in a map.
@@ -25,7 +23,7 @@ const DRAG = 0.9;
 export class CritterSystem implements System {
   private _critterIdToBrain = new Map<string, CritterBrain>();
 
-  private _critterGeometry = new THREE.CircleGeometry(2, 12);
+  private _critterGeometry: THREE.BufferGeometry;
   private _critterMaterials: THREE.MeshBasicMaterial[] = [];
   private _nextCritterMaterialIndex = 0;
 
@@ -44,6 +42,16 @@ export class CritterSystem implements System {
 
   constructor() {
     this._critterMaterials = this._colors.map(color => new THREE.MeshBasicMaterial({ color }));
+
+    this._critterGeometry = new THREE.BufferGeometry();
+
+    const vertices = new Float32Array([
+      6, 0.0, 0.0,   // Tip (right)
+      -0.1, 3.2, 0.0,  // Top back
+      -0.1, -3.2, 0.0  // Bottom back
+    ]);
+
+    this._critterGeometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3))
   }
 
   onAdd() { }
@@ -65,15 +73,16 @@ export class CritterSystem implements System {
       brain.setCellValue(CELL_IO_INDEXES.HEADING, brain.state.heading);
       brain.setCellValue(CELL_IO_INDEXES.VELOCITY, brain.state.velocity);
 
-      const accel = brain.readCellValue(CELL_IO_INDEXES.ACCELLERATE);
-      const turn = brain.readCellValue(CELL_IO_INDEXES.TURN);
-
       const foodCpt = firstComponentOrThrow(ce, "food");
       const foodDistance = componentNumberValueOrThrow(foodCpt, "distance");
       const foodAngle = componentNumberValueOrThrow(foodCpt, "relativeAngle");
 
       brain.setCellValue(CELL_IO_INDEXES.FOOD_DISTANCE, foodDistance);
       brain.setCellValue(CELL_IO_INDEXES.FOOD_ANGLE, foodAngle);
+
+      // read outputs
+      const accel = brain.readCellValue(CELL_IO_INDEXES.ACCELLERATE);
+      const turn = brain.readCellValue(CELL_IO_INDEXES.TURN);
 
       if (accel != null) {
         brain.state.velocity += accel;
@@ -109,10 +118,10 @@ export class CritterSystem implements System {
       if (brain.state.position.x > boundRight) {
         brain.state.position.x = boundRight;
       }
-      if (brain.state.position.y > boundBottom) {
+      if (brain.state.position.y < boundBottom) {
         brain.state.position.y = boundBottom;
       }
-      if (brain.state.position.y < boundTop) {
+      if (brain.state.position.y > boundTop) {
         brain.state.position.y = boundTop;
       }
 
@@ -125,7 +134,8 @@ export class CritterSystem implements System {
       headingComponent.numberValues.set("heading", heading);
 
       // enforce drag
-      brain.state.velocity *= DRAG;
+      brain.state.velocity *= world.environment.get('drag') ?? 0;
+      brain.decay();
 
     }
   }
@@ -160,11 +170,17 @@ export class CritterSystem implements System {
       nearbyFood.numberValues.set("distance", 0);
       nearbyFood.numberValues.set("relativeAngle", 0);
 
+      const renderable = World.getComponent("renderable");
+
+      const brainCpt = World.getComponent("brain");
+
       entity.components.push(nearbyFood);
       entity.components.push(component);
       entity.components.push(heading);
       entity.components.push(velocity);
       entity.components.push(position);
+      entity.components.push(renderable);
+      entity.components.push(brainCpt);
       world.entities.push(entity);
 
       component.payload = critterDefinition;
@@ -172,12 +188,14 @@ export class CritterSystem implements System {
       brain.buildFromDefinition(critterDefinition);
       this._critterIdToBrain.set(entity.id, brain);
 
+      brainCpt.payload = brain;
+
       const material = this._getMaterial();
       const mesh = new THREE.Mesh(this._critterGeometry, material);
+      renderable.payload = mesh;
       mesh.position.x = 0;
       mesh.position.y = 0;
       this._critterIdToMesh.set(entity.id, mesh);
-      world.renderablesToAdd.push(mesh);
     }
 
     addEntity.components.length = 0;
@@ -199,11 +217,11 @@ export class CritterSystem implements System {
       world.removeEntityById(cId);
       const mesh = this._critterIdToMesh.get(cId);
       if (mesh) {
-        world.renderablesToRemove.push(mesh);
         this._critterIdToMesh.delete(cId);
       }
     }
     removalEntity.components.length = 0;
+    world.removeEntityById(removalEntity.id);
   }
 
   private _getMaterial() {
@@ -211,6 +229,7 @@ export class CritterSystem implements System {
     if (this._nextCritterMaterialIndex >= this._critterMaterials.length) {
       this._nextCritterMaterialIndex = 0;
     }
+
     return material;
   }
 }

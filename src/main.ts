@@ -7,7 +7,6 @@ import { RendererSystem } from './systems/renderer_system.js';
 import { Scene } from './scene.js';
 import { CritterSystem } from './systems/critter_system.js';
 import { FoodSystem } from './systems/food_system.js';
-import { CritterNeighborSystem } from './systems/critter_neighbor_system.js';
 
 class App {
   private isRunning: boolean = true;
@@ -36,13 +35,15 @@ class App {
     this._world.environment.set('boundary_right', canvas.width / 2);
     this._world.environment.set('boundary_top', canvas.height / 2);
     this._world.environment.set('boundary_bottom', -(canvas.height / 2));
+    this._world.environment.set('drag', 0.3);
 
     this._simulation = new Simulation(this._world);
 
     this._simulation.addSystem(new RendererSystem(this._scene));
-    this._simulation.addSystem(new CritterSystem());
     // this._simulation.addSystem(new CritterNeighborSystem());
     this._simulation.addSystem(new FoodSystem());
+
+    this._simulation.addSystem(new CritterSystem());
 
 
     this.setupControls();

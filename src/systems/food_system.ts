@@ -13,7 +13,7 @@ export class FoodSystem implements System {
   private _foodGeometry = new THREE.CircleGeometry(1, 12);
 
   onAdd(world: World) {
-    this._addFood(10, 0, world);
+    this._addFood(10, 10, world);
   }
   onRemove() { }
 
@@ -45,8 +45,11 @@ export class FoodSystem implements System {
     for (const critterEntity of critterEntities) {
 
       const foodInRange = this._getNearbyFood(critterEntity);
+      const foodCpt = firstComponentOrThrow(critterEntity, "food");
 
       if (foodInRange.length === 0) {
+        foodCpt.numberValues.set("relativeAngle", 0);
+        foodCpt.numberValues.set("distance", 0);
         continue;
       }
 
@@ -68,13 +71,16 @@ export class FoodSystem implements System {
       const headingCpt = firstComponentOrThrow(critterEntity, "heading");
       const heading = componentNumberValueOrThrow(headingCpt, "heading");
 
-      const relativeAngle = heading - averageAngle;
+      const relativeAngle = this._normalizeAngle(heading - averageAngle);
 
-      const foodCpt = firstComponentOrThrow(critterEntity, "food");
       foodCpt.numberValues.set("relativeAngle", relativeAngle);
       foodCpt.numberValues.set("distance", averageD);
     }
 
+  }
+
+  private _normalizeAngle(angle: number) {
+    return ((angle % (2 * Math.PI)) + (2 * Math.PI)) % (2 * Math.PI);
   }
 
   private _addFood(x: number, y: number, world: World) {
@@ -88,19 +94,19 @@ export class FoodSystem implements System {
     mesh.position.x = x;
     mesh.position.y = y;
 
-    world.renderablesToAdd.push(mesh);
+    const renderableComponent = World.getComponent("renderable");
+    renderableComponent.payload = mesh;
+
+    newFood.components.push(renderableComponent);
+
     world.entities.push(newFood);
 
     this._foodToMesh.set(newFood, mesh);
   }
 
   private _removeFood(food: Entity, world: World) {
-    const mesh = this._foodToMesh.get(food);
-    if (mesh) {
-      world.renderablesToRemove.push(mesh);
-    }
-
     this._foodToMesh.delete(food);
+    world.removeEntityById(food.id);
   }
 
   private _getNearbyFood(critter: Entity) {
