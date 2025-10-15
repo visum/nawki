@@ -71,7 +71,7 @@ export class CritterSystem implements System {
       // assign input values
       brain.setCellValue(CELL_IO_INDEXES.ENERGY, brain.state.energy);
       brain.setCellValue(CELL_IO_INDEXES.HEADING, brain.state.heading);
-      brain.setCellValue(CELL_IO_INDEXES.VELOCITY, brain.state.velocity);
+      brain.setCellValue(CELL_IO_INDEXES.SPEED, brain.state.velocity.speed);
 
       const foodCpt = firstComponentOrThrow(ce, "food");
       const foodDistance = componentNumberValueOrThrow(foodCpt, "distance") as number;
@@ -84,20 +84,31 @@ export class CritterSystem implements System {
       const accel = brain.readCellValue(CELL_IO_INDEXES.ACCELLERATE);
       const turn = brain.readCellValue(CELL_IO_INDEXES.TURN);
 
-      if (accel != null) {
-        brain.state.velocity += accel;
-      }
-
       if (turn != null) {
         brain.state.heading += turn;
       }
 
-      // now process movement
-      const heading = brain.state.heading;
-      const velocity = brain.state.velocity;
+      if (accel != null) {
+        const inertia = world.environment.get("intertia") ?? 1;
 
-      const dX = Math.cos(heading) * velocity;
-      const dY = Math.sin(heading) * velocity;
+        const speed1 = brain.state.velocity.speed;
+        const newSpeed = ((inertia * speed1) + accel) / 2;
+
+        const changeStrength = speed1 > 0 ? newSpeed / speed1 : 1;
+
+        const dir1 = brain.state.velocity.direction;
+        const newDir = (dir1 + (brain.state.heading * changeStrength)) / 2;
+
+        brain.state.velocity.speed = newSpeed;
+        brain.state.velocity.direction = newDir;
+      }
+      // now process movement
+      const direction = brain.state.velocity.direction;
+      const speed = brain.state.velocity.speed;
+
+      // TODO: implement inertia
+      const dX = Math.cos(direction) * speed;
+      const dY = Math.sin(direction) * speed;
 
       brain.state.position.x += dX;
       brain.state.position.y += dY;
@@ -131,14 +142,14 @@ export class CritterSystem implements System {
       position.numberValues.set("y", brain.state.position.y);
 
       const headingComponent = firstComponentOrThrow(ce, "heading");
-      headingComponent.numberValues.set("heading", heading);
+      headingComponent.numberValues.set("heading", direction);
 
       const renderableComponent = firstComponentOrThrow(ce, "renderable");
       renderableComponent.numberValues.set("x", brain.state.position.x);
       renderableComponent.numberValues.set("y", brain.state.position.y);
 
       // enforce drag
-      brain.state.velocity *= world.environment.get('drag') ?? 0;
+      brain.state.speed *= world.environment.get('drag') ?? 0;
       brain.decay();
 
     }
@@ -253,7 +264,7 @@ export const CELL_IO_INDEXES = {
   NEIGHBOR_DISTANCE: 3,
   ENERGY: 4,
   HEADING: 5,
-  VELOCITY: 6,
+  SPEED: 6,
   // output/behavior
   TURN: 10,
   ACCELLERATE: 11,

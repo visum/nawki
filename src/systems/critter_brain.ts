@@ -24,12 +24,12 @@ export class CritterBrain {
   private _id: string = "";
 
   private _state: {
-    velocity: number,
+    velocity: { speed: number, direction: number },
     heading: number,
     energy: number,
     position: Vector2D
   } = {
-      velocity: 0,
+      velocity: { speed: 0, direction: 0 },
       heading: 0,
       energy: 0,
       position: { x: 0, y: 0 }
