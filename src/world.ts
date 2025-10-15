@@ -13,7 +13,7 @@ export type Entity = {
 
 export type Component = {
   type: string;
-  numberValues: Map<string, number>;
+  numberValues: Map<string, number | null>;
   stringValues: Map<string, string>;
   payload?: any;
 }
@@ -36,7 +36,7 @@ export function componentStringValueOrThrow(component: Component, name: string) 
 
 export function componentNumberValueOrThrow(component: Component, name: string) {
   const value = component.numberValues.get(name);
-  if (value == null) {
+  if (value === undefined) {
     throw new Error("Number value not found on component");
   }
   return value;
@@ -57,7 +57,7 @@ export class World implements WorldState {
   static getComponent(type: string): Component {
     return {
       type,
-      numberValues: new Map<string, number>(),
+      numberValues: new Map<string, number | null>(),
       stringValues: new Map<string, string>(),
     }
   }

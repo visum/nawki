@@ -74,8 +74,8 @@ export class CritterSystem implements System {
       brain.setCellValue(CELL_IO_INDEXES.VELOCITY, brain.state.velocity);
 
       const foodCpt = firstComponentOrThrow(ce, "food");
-      const foodDistance = componentNumberValueOrThrow(foodCpt, "distance");
-      const foodAngle = componentNumberValueOrThrow(foodCpt, "relativeAngle");
+      const foodDistance = componentNumberValueOrThrow(foodCpt, "distance") as number;
+      const foodAngle = componentNumberValueOrThrow(foodCpt, "relativeAngle") as number;
 
       brain.setCellValue(CELL_IO_INDEXES.FOOD_DISTANCE, foodDistance);
       brain.setCellValue(CELL_IO_INDEXES.FOOD_ANGLE, foodAngle);
@@ -99,8 +99,8 @@ export class CritterSystem implements System {
       const dX = Math.cos(heading) * velocity;
       const dY = Math.sin(heading) * velocity;
 
-      brain.state.position.x = dX;
-      brain.state.position.y = dY;
+      brain.state.position.x += dX;
+      brain.state.position.y += dY;
 
       // enforce edges
       const boundLeft = world.environment.get("boundary_left");
@@ -133,6 +133,10 @@ export class CritterSystem implements System {
       const headingComponent = firstComponentOrThrow(ce, "heading");
       headingComponent.numberValues.set("heading", heading);
 
+      const renderableComponent = firstComponentOrThrow(ce, "renderable");
+      renderableComponent.numberValues.set("x", brain.state.position.x);
+      renderableComponent.numberValues.set("y", brain.state.position.y);
+
       // enforce drag
       brain.state.velocity *= world.environment.get('drag') ?? 0;
       brain.decay();
@@ -154,11 +158,13 @@ export class CritterSystem implements System {
       if (!critterDefinition) {
         continue;
       }
+      const requestedPositionX = critterComponent.numberValues.get("x") ?? 0;
+      const requestedPositionY = critterComponent.numberValues.get("y") ?? 0;
       const entity = World.getEntity("critter");
       const component = World.getComponent("critter_definition");
       const position = World.getComponent("position");
-      position.numberValues.set("x", 0);
-      position.numberValues.set("y", 0);
+      position.numberValues.set("x", requestedPositionX);
+      position.numberValues.set("y", requestedPositionY);
 
       const heading = World.getComponent("heading");
       heading.numberValues.set("heading", 0);
@@ -167,10 +173,12 @@ export class CritterSystem implements System {
       velocity.numberValues.set("velocity", 0);
 
       const nearbyFood = World.getComponent("food");
-      nearbyFood.numberValues.set("distance", 0);
-      nearbyFood.numberValues.set("relativeAngle", 0);
+      nearbyFood.numberValues.set("distance", null);
+      nearbyFood.numberValues.set("relativeAngle", null);
 
       const renderable = World.getComponent("renderable");
+      renderable.numberValues.set("x", requestedPositionX);
+      renderable.numberValues.set("y", requestedPositionY);
 
       const brainCpt = World.getComponent("brain");
 
@@ -187,14 +195,16 @@ export class CritterSystem implements System {
       const brain = new CritterBrain(entity.id);
       brain.buildFromDefinition(critterDefinition);
       this._critterIdToBrain.set(entity.id, brain);
+      brain.state.position.x = requestedPositionX;
+      brain.state.position.y = requestedPositionY;
 
       brainCpt.payload = brain;
 
       const material = this._getMaterial();
       const mesh = new THREE.Mesh(this._critterGeometry, material);
       renderable.payload = mesh;
-      mesh.position.x = 0;
-      mesh.position.y = 0;
+      mesh.position.x = requestedPositionX;
+      mesh.position.y = requestedPositionY;
       this._critterIdToMesh.set(entity.id, mesh);
     }
 

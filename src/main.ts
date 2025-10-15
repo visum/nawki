@@ -35,7 +35,7 @@ class App {
     this._world.environment.set('boundary_right', canvas.width / 2);
     this._world.environment.set('boundary_top', canvas.height / 2);
     this._world.environment.set('boundary_bottom', -(canvas.height / 2));
-    this._world.environment.set('drag', 0.3);
+    this._world.environment.set('drag', 0.9);
 
     this._simulation = new Simulation(this._world);
 
@@ -66,8 +66,13 @@ class App {
       this._simulation.tick();
     });
 
-    canvas?.addEventListener('click', () => {
-      this._simulation.addCritter(Adam);
+    canvas?.addEventListener('click', (event) => {
+      const canvasRect = canvas.getBoundingClientRect();
+      const canvasX = event.clientX - canvasRect.x;
+      const canvasY = event.clientY - canvasRect.y;
+      const x = canvasX - canvasRect.width / 2;
+      const y = -(canvasY - canvasRect.height / 2);
+      this._simulation.addCritter(Adam, { x, y });
     });
   }
 

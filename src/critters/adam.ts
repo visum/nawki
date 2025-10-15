@@ -27,7 +27,7 @@ export const Adam: CritterDefinition = {
       decay: 1
     },
     20: { // spped limiter
-      staticValue: 1,
+      staticValue: 0.5,
       threshold: 0,
       decay: 0.9
     }

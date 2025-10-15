@@ -113,7 +113,7 @@ export class CritterBrain {
 
 class Cell {
   private _staticValue: number | null = null;
-  private _value: number = 0;
+  private _value: number | null = null;
   private _threshold: number;
   private _decay: number = 1;
   private _links = new Map<string, Link>();
@@ -124,12 +124,12 @@ class Cell {
     this._decay = decay;
   }
 
-  read(): number {
-    if (Math.abs(this._value) >= this._threshold) {
+  read(): number | null {
+    if (this._value != null && Math.abs(this._value) >= this._threshold) {
       return this._staticValue == null ? this._value : this._staticValue;
     }
 
-    return 0;
+    return null;
   }
 
   addLink(link: Link) {
@@ -140,21 +140,32 @@ class Cell {
     this._links.delete(id);
   }
 
-  set(value: number, notify = true) {
+  set(value: number | null, notify = true) {
     this._value = value;
     if (notify) {
       this.notify();
     }
   }
 
-  integrate(value: number, notify = true) {
-    this._value += value;
+  integrate(value: number | null, notify = true) {
+    if (value === null) {
+      return;
+    }
+
+    if (this._value == null) {
+      this._value = value;
+    } else {
+      this._value += value;
+    }
     if (notify) {
       this.notify();
     }
   }
 
   decay() {
+    if (this._value == null) {
+      return;
+    }
     this._value *= (1 - this._decay);
   }
 

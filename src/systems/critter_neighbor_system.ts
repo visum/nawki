@@ -2,7 +2,6 @@ import { System } from "../types/system";
 import { WorldState } from "../world";
 import { Vector2D } from "../types/critter";
 
-
 const NEIGHBOR_RADIUS = 200;
 
 export class CritterNeighborSystem implements System {
@@ -51,6 +50,4 @@ export class CritterNeighborSystem implements System {
 
     return results;
   }
-
-
 }

@@ -4,6 +4,7 @@ import { System } from "../types/system";
 import { World, Entity, firstComponentOrThrow, componentNumberValueOrThrow } from "../world";
 
 const FOOD_RADIUS = 400;
+const EATEN_DISTANCE = 3;
 
 export class FoodSystem implements System {
 
@@ -12,8 +13,8 @@ export class FoodSystem implements System {
   private _foodMaterial = new THREE.MeshBasicMaterial({ color: 0x00ffdd77 });
   private _foodGeometry = new THREE.CircleGeometry(1, 12);
 
-  onAdd(world: World) {
-    this._addFood(10, 10, world);
+  onAdd(_world: World) {
+    // this._addFood(10, 10, _world);
   }
   onRemove() { }
 
@@ -27,8 +28,8 @@ export class FoodSystem implements System {
       throw new Error("Environment missing values");
     }
 
-    // const doAddFood = Math.random() > 0.99;
-    const doAddFood = false;
+    const doAddFood = Math.random() > 0.99;
+    // const doAddFood = false;
 
     if (doAddFood) {
       const width = boundaryRight - boundaryLeft;
@@ -39,7 +40,6 @@ export class FoodSystem implements System {
       this._addFood(posX, posY, world)
     }
 
-
     const critterEntities = world.entities.filter(e => e.type === "critter");
 
     for (const critterEntity of critterEntities) {
@@ -48,39 +48,34 @@ export class FoodSystem implements System {
       const foodCpt = firstComponentOrThrow(critterEntity, "food");
 
       if (foodInRange.length === 0) {
-        foodCpt.numberValues.set("relativeAngle", 0);
-        foodCpt.numberValues.set("distance", 0);
+        foodCpt.numberValues.set("relativeAngle", null);
+        foodCpt.numberValues.set("distance", null);
         continue;
       }
 
-      const eatenFood = foodInRange.filter(([, dist]) => dist < 0.2);
+      const eatenFood = foodInRange.filter(([, dist]) => dist < EATEN_DISTANCE);
 
       eatenFood.forEach(([, , f]) => this._removeFood(f, world))
 
-      const notEatenFood = foodInRange.filter(([_, dist]) => dist >= 0.2);
+      const notEatenFood = foodInRange.filter(([_, dist]) => dist >= EATEN_DISTANCE);
+      if (notEatenFood.length === 0) {
+        continue;
+      }
 
-      const [sumX, sumY, sumD] = notEatenFood.reduce((acc, current) => [
-        acc[0] + current[0].x, acc[1] + current[0].y, acc[2] + current[1]
-      ], [0, 0, 0]);
+      const nearestFood = notEatenFood.sort(([, aDist], [, bDist]) => aDist - bDist)[0];
 
-      const averageX = sumX / notEatenFood.length;
-      const averageY = sumY / notEatenFood.length;
-      const averageD = sumD / notEatenFood.length;
-      const averageAngle = Math.atan2(averageY, averageX);
+      const x = nearestFood[0].x;
+      const y = nearestFood[0].y;
+      const angle = Math.atan2(y, x);
 
       const headingCpt = firstComponentOrThrow(critterEntity, "heading");
-      const heading = componentNumberValueOrThrow(headingCpt, "heading");
+      const heading = componentNumberValueOrThrow(headingCpt, "heading") as number;
 
-      const relativeAngle = this._normalizeAngle(heading - averageAngle);
+      const relativeAngle = angle - heading;
 
       foodCpt.numberValues.set("relativeAngle", relativeAngle);
-      foodCpt.numberValues.set("distance", averageD);
+      foodCpt.numberValues.set("distance", nearestFood[1]);
     }
-
-  }
-
-  private _normalizeAngle(angle: number) {
-    return ((angle % (2 * Math.PI)) + (2 * Math.PI)) % (2 * Math.PI);
   }
 
   private _addFood(x: number, y: number, world: World) {
@@ -113,13 +108,13 @@ export class FoodSystem implements System {
     const results: [Vector2D, number, Entity][] = [];
 
     const critterPosition = firstComponentOrThrow(critter, "position");
-    const critterX = componentNumberValueOrThrow(critterPosition, "x");
-    const critterY = componentNumberValueOrThrow(critterPosition, "y");
+    const critterX = componentNumberValueOrThrow(critterPosition, "x") as number;
+    const critterY = componentNumberValueOrThrow(critterPosition, "y") as number;
 
     for (const f of this._foodToMesh.keys()) {
       const position = firstComponentOrThrow(f, "position");
-      const x = componentNumberValueOrThrow(position, "x");
-      const y = componentNumberValueOrThrow(position, "y");
+      const x = componentNumberValueOrThrow(position, "x") as number;
+      const y = componentNumberValueOrThrow(position, "y") as number;
       const dx = x - critterX;
       const dy = y - critterY;
 

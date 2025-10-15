@@ -1,6 +1,6 @@
 import { World } from "./world";
 import { System } from "./types/system";
-import { CritterDefinition } from "./types/critter";
+import { CritterDefinition, Vector2D } from "./types/critter";
 
 export class Simulation {
   private _world: World;
@@ -24,13 +24,15 @@ export class Simulation {
     system.onRemove(this._world);
   }
 
-  addCritter(defition: CritterDefinition) {
+  addCritter(defition: CritterDefinition, position: Vector2D) {
     let critterAddEntity = this._world.firstEntityByType("critters-to-add");
     if (!critterAddEntity) {
       critterAddEntity = World.getEntity("critters-to-add");
       this._world.entities.push(critterAddEntity);
     }
     const c = World.getComponent("critter");
+    c.numberValues.set("x", position.x);
+    c.numberValues.set("y", position.y);
     c.payload = defition;
     critterAddEntity.components.push(c);
   }
