@@ -14,11 +14,7 @@ import { CritterBrain } from "./critter_brain";
  *
  *  What we really need is just the critter definition, not an instance
  *  of a critter with state.
- *
- *  TODO: Make the critters on the world entities?
- *  for each critterToAdd, instantiate a new CritterBrain
- *
- * */
+ **/
 
 export class CritterSystem implements System {
   private _critterIdToBrain = new Map<string, CritterBrain>();
@@ -74,10 +70,10 @@ export class CritterSystem implements System {
       brain.setCellValue(CELL_IO_INDEXES.SPEED, brain.state.velocity.speed);
 
       const foodCpt = firstComponentOrThrow(ce, "food");
-      const foodDistance = componentNumberValueOrThrow(foodCpt, "distance") as number;
+      const foodProximity = componentNumberValueOrThrow(foodCpt, "proximity") as number;
       const foodAngle = componentNumberValueOrThrow(foodCpt, "relativeAngle") as number;
 
-      brain.setCellValue(CELL_IO_INDEXES.FOOD_DISTANCE, foodDistance);
+      brain.setCellValue(CELL_IO_INDEXES.FOOD_PROXIMITY, foodProximity);
       brain.setCellValue(CELL_IO_INDEXES.FOOD_ANGLE, foodAngle);
 
       // read outputs
@@ -105,8 +101,8 @@ export class CritterSystem implements System {
       // now process movement
       const direction = brain.state.velocity.direction;
       const speed = brain.state.velocity.speed;
+      const heading = brain.state.heading;
 
-      // TODO: implement inertia
       const dX = Math.cos(direction) * speed;
       const dY = Math.sin(direction) * speed;
 
@@ -142,16 +138,15 @@ export class CritterSystem implements System {
       position.numberValues.set("y", brain.state.position.y);
 
       const headingComponent = firstComponentOrThrow(ce, "heading");
-      headingComponent.numberValues.set("heading", direction);
+      headingComponent.numberValues.set("heading", heading);
 
       const renderableComponent = firstComponentOrThrow(ce, "renderable");
       renderableComponent.numberValues.set("x", brain.state.position.x);
       renderableComponent.numberValues.set("y", brain.state.position.y);
 
       // enforce drag
-      brain.state.speed *= world.environment.get('drag') ?? 0;
+      brain.state.velocity.speed *= world.environment.get('drag') ?? 0;
       brain.decay();
-
     }
   }
 
@@ -184,7 +179,7 @@ export class CritterSystem implements System {
       velocity.numberValues.set("velocity", 0);
 
       const nearbyFood = World.getComponent("food");
-      nearbyFood.numberValues.set("distance", null);
+      nearbyFood.numberValues.set("proximity", null);
       nearbyFood.numberValues.set("relativeAngle", null);
 
       const renderable = World.getComponent("renderable");
@@ -259,12 +254,13 @@ export class CritterSystem implements System {
 export const CELL_IO_INDEXES = {
   // input/senses
   FOOD_ANGLE: 0,
-  FOOD_DISTANCE: 1,
+  FOOD_PROXIMITY: 1,
   NEIGHBOR_ANGLE: 2,
-  NEIGHBOR_DISTANCE: 3,
+  NEIGHBOR_PROXIMITY: 3,
   ENERGY: 4,
   HEADING: 5,
   SPEED: 6,
+  CONST_ONE: 7,
   // output/behavior
   TURN: 10,
   ACCELLERATE: 11,

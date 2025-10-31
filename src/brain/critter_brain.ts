@@ -4,48 +4,9 @@ import { CritterDefinition, Vector2D } from "../types/critter";
 // the nodes and connections, and propagating values
 // as values are updated.
 
-/*
-
-# Critter Brain Architecture
-
-## Components
-
-**Cells** have two properties:
-- **threshold**: Activation threshold (compared against absolute value)
-- **decay**: Multiplicative decay rate applied each tick (e.g., 0.1 means value → value * 0.9)
-
-**Links** have four properties:
-- **source**: Index of source cell
-- **target**: Index of target cell  
-- **factor**: Multiplier applied to value (can be negative)
-- **gate**: Optional reference to a gate cell index (null if ungated)
-
-## Behavior
-
-**Value updates:**
-- When a cell receives input, new value = whichever has larger absolute value (current vs incoming), preserving sign
-- Each tick, all cells decay: `value *= (1 - decay)`
-
-**Propagation:**
-- A cell fires its links when it receives new input that changes its value
-- Links only fire if `abs(source_cell.value) > source_cell.threshold`
-- Gated links only fire if `abs(gate_cell.value) > gate_cell.threshold`
-- Outgoing value through link: `source_cell.value * factor`
-
-**Special cells:**
-- **Input cells**: World writes sensory data here each tick (e.g., food_distance, neighbor_heading)
-- **Output cells**: World reads action requests from here (e.g., turn, accelerate)
-- **Constant cell**: One input cell always holds 1.0 for generating static outputs
-
-**Execution:** Event-driven propagation within each tick - input updates cascade through the network until settled, then outputs are read.
-
- */
-
-
 export type CellParameters = {
   threshold: number;
   decay: number;
-  index: number;
 };
 
 export type LinkParameters = {
@@ -63,12 +24,12 @@ export class CritterBrain {
   private _id: string = "";
 
   private _state: {
-    velocity: { speed: number, direction: number },
+    velocity: Vector2D,
     heading: number,
     energy: number,
     position: Vector2D
   } = {
-      velocity: { speed: 0, direction: 0 },
+      velocity: { x: 0, y: 0 },
       heading: 0,
       energy: 0,
       position: { x: 0, y: 0 }
@@ -83,7 +44,7 @@ export class CritterBrain {
     const { cells, links } = definition;
     for (const c of Object.keys(cells)) {
       const i = Number(c);
-      this.addCellAt({ ...cells[i], index: i });
+      this.addCellAt(cells[i], i);
     }
 
     for (const l of links) {
@@ -103,24 +64,16 @@ export class CritterBrain {
     return this._definition;
   }
 
-  addCellAt(params: CellParameters) {
-    this._cells[params.index] = new Cell(params)
+  addCellAt(params: CellParameters, index: number) {
+    this._cells[index] = new Cell(params)
   }
 
   addLink(params: LinkParameters) {
     const source = this._cells[params.source];
     const target = this._cells[params.target];
-    let gate;
-    if (params.gateCell != null) {
-      gate = this._cells[params.gateCell];
-    }
 
     if (source != null && target != null) {
-      const link: Link = { id: `${params.source}-${params.target}`, factor: params.factor, target };
-      if (gate != null) {
-        link.gateCell = gate;
-      }
-      source.addLink(link);
+      source.addLink({ id: `${params.source}-${params.target}`, factor: params.factor, target, source });
     }
   }
 
@@ -132,7 +85,7 @@ export class CritterBrain {
     }
   }
 
-  setCellValue(cellIndex: number, value: number) {
+  setCellValue(cellIndex: number, value: number | null) {
     const c = this._cells[cellIndex];
     if (c != null) {
       c.set(value);
@@ -159,25 +112,25 @@ export class CritterBrain {
 
 
 class Cell {
-  private _index: number;
+  private _staticValue: number | null = null;
   private _value: number | null = null;
   private _threshold: number;
   private _decay: number = 1;
   private _links = new Map<string, Link>();
+  private _gates = new Map<string, Link>();
 
-  constructor({ threshold, decay, index }: CellParameters) {
+  constructor({ threshold, decay }: CellParameters) {
     this._threshold = threshold;
     this._decay = decay;
-    this._index = index;
   }
 
   get isActive() {
-    return this._value != null && Math.abs(this._value) >= this._threshold;
+    return this._value != null && Math.abs(this._value) > this._threshold;
   }
 
   read(): number | null {
     if (this._value != null && Math.abs(this._value) >= this._threshold) {
-      return this._value;
+      return this._staticValue == null ? this._value : this._staticValue;
     }
 
     return null;
@@ -198,15 +151,15 @@ class Cell {
     }
   }
 
-  write(value: number | null, notify = true) {
+  recieve(value: number | null, notify = true) {
     if (value === null) {
       return;
     }
+
     if (this._value == null) {
       this._value = value;
-    }
-    if (this._value < value) {
-      this._value = value;
+    } else {
+      this._value = Math.abs(this._value) < Math.abs(value) ? value : this._value;
     }
     if (notify) {
       this.notify();
@@ -224,8 +177,22 @@ class Cell {
   notify() {
     const value = this.read();
     for (const link of this._links.values()) {
-      if (link.gateCell == null || (link.gateCell != null && link.gateCell.isActive)) {
-        link.target.write(value);
+      if (link.gate) {
+        if (link.gate.isActive) {
+          link.target.recieve(value != null ? value * link.factor : value);
+        }
+      } else {
+        link.target.recieve(value != null ? value * link.factor : value);
+      }
+    }
+    // process gates
+    // might we be double-notifying here?
+    // The source node would already be checking this gate
+    // we really only want to trigger a gate if the gate value changed, right?
+    if (this.isActive) {
+      for (const gateLink of this._gates.values()) {
+        const gateSourceValue = gateLink.source.read();
+        gateLink.target.recieve(gateSourceValue != null ? gateSourceValue * gateLink.factor : gateSourceValue);
       }
     }
   }
@@ -234,6 +201,7 @@ class Cell {
 type Link = {
   id: string,
   factor: number,
+  source: Cell,
   target: Cell,
-  gateCell?: Cell;
+  gate?: Cell
 }

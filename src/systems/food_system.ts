@@ -14,7 +14,7 @@ export class FoodSystem implements System {
   private _foodGeometry = new THREE.CircleGeometry(1, 12);
 
   onAdd(_world: World) {
-    // this._addFood(10, 10, _world);
+    this._addFood(10, 10, _world);
   }
   onRemove() { }
 
@@ -28,8 +28,8 @@ export class FoodSystem implements System {
       throw new Error("Environment missing values");
     }
 
-    const doAddFood = Math.random() > 0.99;
-    // const doAddFood = false;
+    // const doAddFood = Math.random() > 0.99;
+    const doAddFood = false;
 
     if (doAddFood) {
       const width = boundaryRight - boundaryLeft;
@@ -43,13 +43,12 @@ export class FoodSystem implements System {
     const critterEntities = world.entities.filter(e => e.type === "critter");
 
     for (const critterEntity of critterEntities) {
-
       const foodInRange = this._getNearbyFood(critterEntity);
       const foodCpt = firstComponentOrThrow(critterEntity, "food");
 
       if (foodInRange.length === 0) {
         foodCpt.numberValues.set("relativeAngle", null);
-        foodCpt.numberValues.set("distance", null);
+        foodCpt.numberValues.set("proximity", null);
         continue;
       }
 
@@ -74,7 +73,8 @@ export class FoodSystem implements System {
       const relativeAngle = angle - heading;
 
       foodCpt.numberValues.set("relativeAngle", relativeAngle);
-      foodCpt.numberValues.set("distance", nearestFood[1]);
+      const proximity = Math.max(-nearestFood[1] + 200, 0);
+      foodCpt.numberValues.set("proximity", proximity);
     }
   }
 
