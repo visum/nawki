@@ -116,9 +116,10 @@ export class CritterBrain {
     }
 
     if (source != null && target != null) {
-      const link: Link = { id: `${params.source}-${params.target}`, factor: params.factor, target };
+      const link: Link = { id: `${params.source}-${params.target}`, factor: params.factor, target, source };
       if (gate != null) {
         link.gateCell = gate;
+        gate.addGatedLink(link);
       }
       source.addLink(link);
     }
@@ -164,6 +165,7 @@ class Cell {
   private _threshold: number;
   private _decay: number = 1;
   private _links = new Map<string, Link>();
+  private _gatedLinks: Set<Link> = new Set();
 
   constructor({ threshold, decay, index }: CellParameters) {
     this._threshold = threshold;
@@ -191,6 +193,14 @@ class Cell {
     this._links.delete(id);
   }
 
+  addGatedLink(link: Link) {
+    this._gatedLinks.add(link);
+  }
+
+  removeGatedLink(link: Link) {
+    this._gatedLinks.delete(link);
+  }
+
   set(value: number | null, notify = true) {
     this._value = value;
     if (notify) {
@@ -201,6 +211,9 @@ class Cell {
   write(value: number | null, notify = true) {
     if (value === null) {
       return;
+    }
+    if (value === this._value) {
+      return; // only notify if value changes
     }
     if (this._value == null) {
       this._value = value;
@@ -228,12 +241,18 @@ class Cell {
         link.target.write(value);
       }
     }
+    for (const link of this._gatedLinks.values()) {
+      if (this.isActive) {
+        link.target.write(link.source.read());
+      }
+    }
   }
 }
 
 type Link = {
   id: string,
   factor: number,
+  source: Cell,
   target: Cell,
   gateCell?: Cell;
 }

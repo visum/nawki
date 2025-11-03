@@ -65,6 +65,9 @@ export class CritterSystem implements System {
       }
 
       // assign input values
+      // TODO:  in the brain, mark changed input cells as dirty, then
+      // add a "commit" method to trigger propagation all at the same time
+      // to avoid unexpected race conditions
       brain.setCellValue(CELL_IO_INDEXES.ENERGY, brain.state.energy);
       brain.setCellValue(CELL_IO_INDEXES.HEADING, brain.state.heading);
       brain.setCellValue(CELL_IO_INDEXES.SPEED, brain.state.velocity.speed);
