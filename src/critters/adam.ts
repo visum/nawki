@@ -4,8 +4,8 @@ import { CELL_IO_INDEXES } from "../systems/critter_system";
 export const Adam: CritterDefinition = {
   cells: {
     [CELL_IO_INDEXES.FOOD_PROXIMITY]: {
-      threshold: 50,
-      decay: 0
+      threshold: 20,
+      decay: 1
     },
     [CELL_IO_INDEXES.FOOD_ANGLE]: {
       threshold: 0,
@@ -29,7 +29,7 @@ export const Adam: CritterDefinition = {
     },
     [CELL_IO_INDEXES.ACCELLERATE]: {
       threshold: 0,
-      decay: 1
+      decay: 0.01
     },
   },
   links: [

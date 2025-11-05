@@ -35,8 +35,8 @@ class App {
     this._world.environment.set('boundary_right', canvas.width / 2);
     this._world.environment.set('boundary_top', canvas.height / 2);
     this._world.environment.set('boundary_bottom', -(canvas.height / 2));
-    this._world.environment.set('intertia', 0.8); // should be <= 1
-    this._world.environment.set('drag', 0.9); // <= 1
+    this._world.environment.set('intertia', 2);
+    this._world.environment.set('drag', 0.6); // <= 1
 
     this._simulation = new Simulation(this._world);
 

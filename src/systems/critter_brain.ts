@@ -60,6 +60,8 @@ export class CritterBrain {
 
   private _definition: CritterDefinition = { cells: [], links: [] };
 
+  private _dirtyCells: Cell[] = [];
+
   private _id: string = "";
 
   private _state: {
@@ -103,6 +105,13 @@ export class CritterBrain {
     return this._definition;
   }
 
+  commit() {
+    for (const cell of this._dirtyCells) {
+      cell.notify();
+    }
+    this._dirtyCells.length = 0;
+  }
+
   addCellAt(params: CellParameters) {
     this._cells[params.index] = new Cell(params)
   }
@@ -119,7 +128,6 @@ export class CritterBrain {
       const link: Link = { id: `${params.source}-${params.target}`, factor: params.factor, target, source };
       if (gate != null) {
         link.gateCell = gate;
-        gate.addGatedLink(link);
       }
       source.addLink(link);
     }
@@ -136,7 +144,8 @@ export class CritterBrain {
   setCellValue(cellIndex: number, value: number) {
     const c = this._cells[cellIndex];
     if (c != null) {
-      c.set(value);
+      c.write(value);
+      this._dirtyCells.push(c);
     }
   }
 
@@ -165,7 +174,6 @@ class Cell {
   private _threshold: number;
   private _decay: number = 1;
   private _links = new Map<string, Link>();
-  private _gatedLinks: Set<Link> = new Set();
 
   constructor({ threshold, decay, index }: CellParameters) {
     this._threshold = threshold;
@@ -193,37 +201,26 @@ class Cell {
     this._links.delete(id);
   }
 
-  addGatedLink(link: Link) {
-    this._gatedLinks.add(link);
-  }
-
-  removeGatedLink(link: Link) {
-    this._gatedLinks.delete(link);
-  }
-
-  set(value: number | null, notify = true) {
+  set(value: number | null) {
     this._value = value;
-    if (notify) {
-      this.notify();
-    }
   }
 
-  write(value: number | null, notify = true) {
+  write(value: number | null): boolean {
     if (value === null) {
-      return;
+      return false;
     }
     if (value === this._value) {
-      return; // only notify if value changes
+      return false; // only notify if value changes
     }
     if (this._value == null) {
       this._value = value;
+      return true;
     }
-    if (this._value < value) {
+    if (Math.abs(this._value) < Math.abs(value)) {
       this._value = value;
+      return true;
     }
-    if (notify) {
-      this.notify();
-    }
+    return false;
   }
 
   decay() {
@@ -239,11 +236,6 @@ class Cell {
     for (const link of this._links.values()) {
       if (link.gateCell == null || (link.gateCell != null && link.gateCell.isActive)) {
         link.target.write(value);
-      }
-    }
-    for (const link of this._gatedLinks.values()) {
-      if (this.isActive) {
-        link.target.write(link.source.read());
       }
     }
   }

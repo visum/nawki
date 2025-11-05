@@ -72,12 +72,17 @@ export class CritterSystem implements System {
       brain.setCellValue(CELL_IO_INDEXES.HEADING, brain.state.heading);
       brain.setCellValue(CELL_IO_INDEXES.SPEED, brain.state.velocity.speed);
 
+      // Constant one cell
+      brain.setCellValue(CELL_IO_INDEXES.CONST_ONE, 1);
+
       const foodCpt = firstComponentOrThrow(ce, "food");
       const foodProximity = componentNumberValueOrThrow(foodCpt, "proximity") as number;
       const foodAngle = componentNumberValueOrThrow(foodCpt, "relativeAngle") as number;
 
       brain.setCellValue(CELL_IO_INDEXES.FOOD_PROXIMITY, foodProximity);
       brain.setCellValue(CELL_IO_INDEXES.FOOD_ANGLE, foodAngle);
+
+      brain.commit();
 
       // read outputs
       const accel = brain.readCellValue(CELL_IO_INDEXES.ACCELLERATE);
@@ -88,15 +93,28 @@ export class CritterSystem implements System {
       }
 
       if (accel != null) {
-        const inertia = world.environment.get("intertia") ?? 1;
+        const mass = world.environment.get("intertia") ?? 1;
+        // Current velocity as a vector
+        const vx = Math.cos(brain.state.velocity.direction) * brain.state.velocity.speed;
+        const vy = Math.sin(brain.state.velocity.direction) * brain.state.velocity.speed;
 
-        const speed1 = brain.state.velocity.speed;
-        const newSpeed = ((inertia * speed1) + accel) / 2;
+        // Force applied in the direction the critter is facing (heading)
+        const fx = Math.cos(brain.state.heading) * accel;
+        const fy = Math.sin(brain.state.heading) * accel;
 
-        const changeStrength = speed1 > 0 ? newSpeed / speed1 : 1;
+        // Calculate acceleration: a = F / m
+        const ax = fx / mass;
+        const ay = fy / mass;
 
-        const dir1 = brain.state.velocity.direction;
-        const newDir = (dir1 + (brain.state.heading * changeStrength)) / 2;
+        // Update velocity (assuming Δt = 1 for simplicity, or use actual time step)
+        const dt = 1; // or world.deltaTime if you track it
+        const newVx = vx + ax * dt;
+        const newVy = vy + ay * dt;
+
+        // Extract new speed and direction
+        const newSpeed = Math.sqrt(newVx * newVx + newVy * newVy);
+        const newDir = Math.atan2(newVy, newVx);
+
 
         brain.state.velocity.speed = newSpeed;
         brain.state.velocity.direction = newDir;

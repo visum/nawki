@@ -28,8 +28,8 @@ export class FoodSystem implements System {
       throw new Error("Environment missing values");
     }
 
-    // const doAddFood = Math.random() > 0.99;
-    const doAddFood = false;
+    const doAddFood = Math.random() > 0.99;
+    //const doAddFood = false;
 
     if (doAddFood) {
       const width = boundaryRight - boundaryLeft;
